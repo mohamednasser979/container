@@ -671,7 +671,8 @@
             planks.forEach(plank => {
                 const numPallets = Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
                
-                const plankStackHeight = (plank.count / numPallets) * plank.thickness;
+                // const plankStackHeight = (plank.count / numPallets) * plank.thickness;
+                const plankStackHeight = MAX_PALLET_HEIGHT_LIMIT;
                 
                 for (let i = 0; i < numPallets; i++) {
                     allPalletUnitsToVisualize.push({
