@@ -269,7 +269,7 @@
          */
         function parsePlankDimensions(itemString) {
             // Regex to find three numbers followed by 'mm' separated by 'x' or '×'
-            const regex = /(\d+)\s*mm\s*[x×]\s*(\d+)\s*mm\s*[x×]\s*(\d+)\s*mm/;
+            const regex = /(\d+(?:\.\d+)?)\s*mm\s*[x×]\s*(\d+(?:\.\d+)?)\s*mm\s*[x×]\s*(\d+(?:\.\d+)?)\s*mm/;
             const match = itemString.match(regex);
 
             if (match && match.length === 4) {
