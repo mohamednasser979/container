@@ -20,6 +20,7 @@
             min-height: 100vh;
             padding: 20px;
             box-sizing: border-box;
+            overflow: hidden; /* Hide scrollbar when modal is open */
         }
         .container-wrapper {
             display: flex;
@@ -31,6 +32,8 @@
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
             padding: 25px;
+            opacity: 0; /* Initially hidden */
+            transition: opacity 0.5s ease-in-out;
         }
         .input-section, .results-section, .plank-list-section, .visualization-section {
             background-color: #f9fafb;
@@ -70,6 +73,52 @@
             width: 100%; /* Make canvas responsive */
             height: 400px; /* Fixed height for better control */
         }
+        /* Style for the custom modal */
+        #passwordModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        #passwordInput {
+            margin-top: 20px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            width: 250px;
+            text-align: center;
+        }
+        #submitPasswordBtn {
+            background-color: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #submitPasswordBtn:hover {
+            background-color: #1e40af;
+        }
+        #errorMessage {
+            color: #ef4444;
+            font-size: 0.9em;
+            margin-top: 10px;
+            display: none;
+        }
         @media (min-width: 768px) {
             .container-wrapper {
                 flex-direction: row;
@@ -90,7 +139,20 @@
     </style>
 </head>
 <body class="bg-gray-100 p-8">
-    <div class="container-wrapper">
+    <!-- Password Modal -->
+    <div id="passwordModal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">الرجاء إدخال الرمز السري</h2>
+            <p class="text-sm text-gray-500">هذه الصفحة محمية بكلمة مرور.</p>
+            <input type="password" id="passwordInput" placeholder="الرمز السري" class="text-right">
+            <div id="errorMessage" class="text-red-600 mt-2">رمز سري خاطئ. حاول مرة أخرى.</div>
+            <button id="submitPasswordBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                دخول
+            </button>
+        </div>
+    </div>
+    
+    <div id="mainContent" class="container-wrapper">
         <div class="left-panel">
             <!-- قسم إدخال الألواح -->
             <div class="input-section rounded-xl shadow-md p-6">
@@ -185,6 +247,41 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
+        // --- Password Protection Logic ---
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordInput = document.getElementById('passwordInput');
+        const submitPasswordBtn = document.getElementById('submitPasswordBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const mainContent = document.getElementById('mainContent');
+        const SECRET_PASSWORD = "123"; // Set your secret password here
+
+        submitPasswordBtn.addEventListener('click', checkPassword);
+        passwordInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                checkPassword();
+            }
+        });
+
+        function checkPassword() {
+            if (passwordInput.value === SECRET_PASSWORD) {
+                passwordModal.style.display = 'none';
+                document.body.style.overflow = 'auto'; // Restore scrolling
+                mainContent.style.opacity = 1; // Fade in the main content
+                // Now that the password is correct, initialize the app
+                window.onload();
+            } else {
+                errorMessage.style.display = 'block';
+                passwordInput.value = ''; // Clear the input
+            }
+        }
+        
+        // Disable onload for now, will call it after successful login
+        window.onload = function() {
+            init3D();
+            renderPlanksList();
+            calculateAndDisplayResults();
+        };
+
         // Array to store added planks
         let planks = [];
 
@@ -814,13 +911,6 @@
 
         // --- Event Listeners for PDF Export ---
         exportPdfBtn.addEventListener('click', exportToPdf);
-
-        // Initialize on window load
-        window.onload = function() {
-            init3D();
-            renderPlanksList(); // Render initial empty list
-            calculateAndDisplayResults(); // Calculate initial results (all zeros)
-        };
 
     </script>
 </body>
