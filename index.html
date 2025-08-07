@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>حاسبة الألواح الخشبية والحاوية</title>
+    <title>Calculat Container</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* Custom styles for the app */
         body {
@@ -165,6 +168,9 @@
             <div class="visualization-section rounded-xl shadow-md p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">عرض ثلاثي الأبعاد</h2>
                 <canvas id="containerCanvas"></canvas>
+                <button id="exportPdfBtn" class="w-full mt-4 bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-200 ease-in-out shadow-md">
+                    تحميل كـ PDF
+                </button>
                 <p class="text-sm text-gray-600 mt-4 text-center">
                     ملاحظة: التمثيل ثلاثي الأبعاد يوضح ترتيب تقريبي للطبالي داخل الحاوية. قد لا يعكس التعبئة المثلى.
                     كل كتلة ملونة تمثل طبلية تحمل 50 لوحًا من نفس النوع.
@@ -185,15 +191,15 @@
         // Container dimensions in meters
         const CONTAINER_DIMENSIONS = {
             '20ft': { length: 6.096, width: 2.138, height: 2.591, volume: 33.0 }, // Updated width for 20ft
-            '40ft': { length: 11.192, width: 2.2, height: 2.4, volume: 62 }  // Updated length and width for 40ft
+            '40ft': { length: 11.192, width: 2.138, height: 2.591, volume: 62 }  // Updated length and width for 40ft
         };
 
         // Pallet specific constants in meters
-        const PALLET_HEIGHT = 0.15; // 15 cm
+        const PALLET_HEIGHT = 0.20; // 15 cm
         const PLANK_PER_PALLET_VISUAL = 50; // For 3D visualization
         const MAX_PLANK_PER_PALLET_CALC = 75; // Max planks per pallet for calculation
         const MAX_PALLET_HEIGHT_LIMIT = 0.90; // 90 cm max height for pallet stack
-        const CONTAINER_SPACING = 0.5; // Spacing between containers in meters for visualization
+        const CONTAINER_SPACING = 0.20; // Spacing between containers in meters for visualization
 
         // DOM elements
         const plankItemInput = document.getElementById('plankItem'); // New input for item string
@@ -202,6 +208,7 @@
         const addPlankBtn = document.getElementById('addPlankBtn');
         const calculateBtn = document.getElementById('calculateBtn');
         const clearBtn = document.getElementById('clearBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn'); // Get the new button
         const planksList = document.getElementById('planksList');
         const noPlanksMessage = document.getElementById('noPlanksMessage');
         const totalPlanksSpan = document.getElementById('totalPlanks');
@@ -269,7 +276,9 @@
          */
         function parsePlankDimensions(itemString) {
             // Regex to find three numbers followed by 'mm' separated by 'x' or '×'
+            // const regex = /(\d+)\s*mm\s*[x×]\s*(\d+)\s*mm\s*[x×]\s*(\d+)\s*mm/;
             const regex = /(\d+(?:\.\d+)?)\s*mm\s*[x×]\s*(\d+(?:\.\d+)?)\s*mm\s*[x×]\s*(\d+(?:\.\d+)?)\s*mm/;
+;
             const match = itemString.match(regex);
 
             if (match && match.length === 4) {
@@ -378,7 +387,7 @@
 
                 // Calculate pallets needed for this plank type based on MAX_PLANK_PER_PALLET_CALC
              
-                    totalPalletsNeeded += Math.ceil(plank.count / 50);
+                    totalPalletsNeeded += Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
                 
             });
 
@@ -614,7 +623,7 @@
                 palletGroup.add(planksStackMesh);
 
                 // Add text sprite for dimensions
-                const dimensionsText = `L: ${unit.plankLength.toFixed(2)}m\nW: ${unit.plankWidth.toFixed(2)}m\nT: ${unit.plankThickness.toFixed(3)}m`;
+                const dimensionsText = `L: ${unit.plankLength.toFixed(2)}M\nW: ${unit.plankWidth.toFixed(2)}M\nT: ${unit.plankThickness.toFixed(3)}M\nH: ${Math.ceil(unit.plankStackHeight * 100)}CM`;
                 const textSprite = createTextSprite(dimensionsText, 'black', 30); // White text, font size 30
                 textSprite.position.set(0, PALLET_HEIGHT + unit.plankStackHeight + 0.1, 0); // Position above the planks stack
                 palletGroup.add(textSprite);
@@ -669,10 +678,38 @@
             // Prepare all pallet units for visualization
             const allPalletUnitsToVisualize = [];
             planks.forEach(plank => {
-                const numPallets = Math.ceil(plank.count / 50);
-               
-                // const plankStackHeight = (plank.count / numPallets) * plank.thickness;
-                const plankStackHeight = plank.thickness * 50;
+                let numPallets, plankStackHeight;
+
+               if (plank.thickness >= '.020'){
+                    numPallets = Math.ceil(plank.count / 50);
+                    plankStackHeight = (plank.count / numPallets) * plank.thickness;
+                    
+               }else if (plank.thickness == '24'){
+                    numPallets = Math.ceil(plank.count / 50);
+
+                    plankStackHeight = plank.count / 50;
+               }
+               else if (plank.thickness == '18'){
+                    numPallets = Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
+
+                    plankStackHeight = plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness);
+               }
+               else if (plank.thickness == '15'){
+                    numPallets = Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
+
+                    plankStackHeight = plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness);
+                }
+                else if (plank.thickness == '12'){
+                    numPallets = Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
+
+                    plankStackHeight = plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness);
+                }
+               else{
+                    numPallets = Math.ceil(plank.count / (MAX_PALLET_HEIGHT_LIMIT / plank.thickness));
+                    plankStackHeight = (plank.count / numPallets) * plank.thickness;
+
+               }
+                // const plankStackHeight = plank.thickness * 50 < .9;
                 
                 for (let i = 0; i < numPallets; i++) {
                     allPalletUnitsToVisualize.push({
@@ -683,7 +720,7 @@
                         totalUnitHeight: PALLET_HEIGHT + plankStackHeight,
                         color: getRandomColor()
                     });
-            }
+                }
             });
 
             // Attempt to pack into the first container
@@ -735,6 +772,48 @@
             controls.target.copy(center);
             controls.update();
         }
+
+        // --- PDF Export Functionality ---
+
+        /**
+         * Exports the 3D canvas to a PDF.
+         */
+        function exportToPdf() {
+            const canvas = document.getElementById('containerCanvas');
+            
+            // Temporarily resize the canvas to a higher resolution for better image quality
+            const originalWidth = canvas.width;
+            const originalHeight = canvas.height;
+            const tempScale = 2; // Increase resolution by 2x
+            canvas.width = originalWidth * tempScale;
+            canvas.height = originalHeight * tempScale;
+            
+            // Re-render the scene with the higher resolution
+            renderer.setSize(canvas.width, canvas.height);
+            renderer.render(scene, camera);
+
+            // Get the image data from the canvas
+            html2canvas(canvas, { scale: 1 }).then(function(canvasResult) {
+                // Restore the original canvas size and re-render
+                canvas.width = originalWidth;
+                canvas.height = originalHeight;
+                renderer.setSize(originalWidth, originalHeight);
+                renderer.render(scene, camera);
+
+                const imgData = canvasResult.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape');
+                
+                const imgWidth = 280; // A4 landscape width in mm
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+                doc.save('container-layout.pdf');
+            });
+        }
+
+        // --- Event Listeners for PDF Export ---
+        exportPdfBtn.addEventListener('click', exportToPdf);
 
         // Initialize on window load
         window.onload = function() {
